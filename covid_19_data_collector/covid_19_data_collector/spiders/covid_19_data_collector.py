@@ -44,28 +44,30 @@ class CountriesItem(scrapy.Item):
 
 
 class covid_19_data_collector(scrapy.Spider):
+ 
 
     def __init__(self):
         name = 'coronavirus_tracker'
         allowed_domains = ['www.worldometers.info']
         start_urls = ['https://www.worldometers.info/coronavirus/#countries']
     
+
     def start_requests(self):
             yield scrapy.Request('https://www.worldometers.info/coronavirus/#countries', callback=self.parse)
+
 
     def parse(self, response):
         global raw_res
         raw_res = list()
-        row = 0 
-        for _ in range(0,len(response.xpath('//*[@id="main_table_countries_today"]/tbody/tr'))-1):  
+        row = 7 
+        for _ in range(14, len(response.xpath('//*[@id="main_table_countries_today"]/tbody/tr'))-1):  
             row += 1 
-            for column in range(1,12): 
+            for column in range(1,13): 
                 try: 
                     raw_res.append(response.xpath(f'//*[@id="main_table_countries_today"]/tbody[1]/tr[{row}]/td[{column}]//text()').extract_first()) 
                 except AttributeError: 
                     raw_res.append(response.xpath(f'//*[@id="main_table_countries_today"]/tbody[1]/tr[{row}]/td[{column}]/text()').extract_first()) 
 
- 
     def closed(self, reason):
         columns = ['country',
                    'total_cases',
@@ -77,74 +79,45 @@ class covid_19_data_collector(scrapy.Spider):
                    'serious_critical',
                    'total_cases_per_million_pop',
                    'total_deaths_per_million_pop',
-                   'first_case_date']
+                   'total_tests',
+                   'total_tests_per_million_pop']
         today = datetime.now().strftime('%d/%m/%Y')
-        vals = zip(raw_res[0::11], raw_res[1::11], raw_res[2::11], raw_res[3::11], raw_res[4::11],
-           raw_res[5::11], raw_res[6::11], raw_res[7::11], raw_res[8::11], raw_res[9::11], raw_res[10::11])
+        vals = zip(raw_res[0::12], raw_res[1::12], raw_res[2::12], raw_res[3::12], raw_res[4::12],
+                raw_res[5::12], raw_res[6::12], raw_res[7::12], raw_res[8::12], raw_res[9::12], raw_res[10::12], raw_res[11::12])
 
         results = pd.DataFrame(vals, columns= columns)
-        results['first_case_date'] = results['first_case_date'].apply(lambda x: x.replace('\n','').strip())
         results.insert(0, 'date', today)
         master_results = pd.read_csv('../../../data/covid_19_case_data.csv')
         master_results = master_results.append(results)
         master_results.to_csv('../../../data/covid_19_case_data.csv', index=False)
 
-        data = pd.read_csv('../../../data/covid_19_case_data.csv')
-        data['date'] = data['date'].apply(lambda x: datetime.strptime(x, '%d/%m/%Y'))
-        data = data.sort_values(['country', 'date']).reset_index(drop=True)
-        data['total_cases'] = data['total_cases'].apply(lambda x: int(x.replace(',','')))
-        data['new_cases'] = data['total_cases'] - data['total_cases'].shift(1).fillna(0)
-        data['new_cases'] = np.where(data['new_cases']<0, 0, data['new_cases'].astype(int))
-        data['total_deaths'] = data['total_deaths'].apply(lambda x: x.replace(',','').strip())
-        data = data.replace(r'^\s*$', np.nan, regex=True).fillna(0)
-        data['total_deaths'] = data['total_deaths'].apply(lambda x: int(x))
-        data['new_deaths'] = data['total_deaths'] - data['total_deaths'].shift(1).fillna(0)
-        data['new_deaths'] = np.where(data['new_deaths']<0, 0, data['new_deaths'].astype(int))
-        data['mask'] = data['total_recovered'].apply(lambda x: isinstance(x, int))
-        data['total_recovered'] = np.where(data['mask']==True,
-                                   data['total_recovered'].astype(str),
-                                   data['total_recovered'])
-        data['total_recovered'] = data['total_recovered'].apply(lambda x: x.replace(',','').strip())
-        data = data.replace(r'^\s*$', np.nan, regex=True).fillna(0)
-        data['total_recovered'] = data['total_recovered'].apply(lambda x: int(x))
-        data['active_cases'] = data['active_cases'].apply(lambda x: x.replace(',','').strip())
-        data['active_cases'] = data['active_cases'].apply(lambda x: int(x))
-        data['mask'] = data['total_recovered'].apply(lambda x: isinstance(x, int))
-        data['serious_critical'] = np.where(data['mask']==True,
-                                   data['serious_critical'].astype(str),
-                                   data['serious_critical'])
-        data['serious_critical'] = data['serious_critical'].apply(lambda x: x.replace(',','').strip())
-        data['serious_critical'] = data['serious_critical'].apply(lambda x: int(x))
-        data['mask'] = data['total_deaths_per_million_pop'].apply(lambda x: isinstance(x, float))
-        data['total_cases_per_million_pop'] = np.where(data['mask']==True,
-                                   data['total_cases_per_million_pop'].astype(str),
-                                   data['total_cases_per_million_pop'])
-        data['total_cases_per_million_pop'] = data['total_cases_per_million_pop'].apply(lambda x: x.replace(',','').strip())
-        data['total_cases_per_million_pop'] = data['total_cases_per_million_pop'].astype(float)
-        data['mask'] = data['total_deaths_per_million_pop'].apply(lambda x: isinstance(x, float))
-        data['total_deaths_per_million_pop'] = np.where(data['mask']==True,
-                                   data['total_deaths_per_million_pop'].astype(str),
-                                   data['total_deaths_per_million_pop'])
-        data['total_deaths_per_million_pop'] = data['total_deaths_per_million_pop'].apply(lambda x: x.replace(',','').strip())
-        data['total_deaths_per_million_pop'] = data['total_deaths_per_million_pop'].astype(float)        
-        data['case_growth_rate'] = (data['new_cases']/data['total_cases'].shift(1))*100
-        data['case_growth_rate'] = np.where(data['case_growth_rate']<0,0,data['case_growth_rate'])
-        data['death_growth_rate'] = (data['new_deaths']/data['total_deaths'].shift(1))*100
-        data['death_growth_rate'] = np.where(data['death_growth_rate']<0,0,data['death_growth_rate'])
-        data.fillna(0, inplace=True)
-        data = data.drop('mask', axis=1)
+        # Post formatting for graph data
+        cols = list(master_results.columns[2:])
+        int_cols = ['total_cases', 'new_cases', 'total_deaths',
+                    'new_deaths', 'total_recovered', 'active_cases', 'serious_critical', 'total_tests']
+        master_results[cols] = master_results[cols].astype(str)
+        master_results['date'] = master_results['date'].apply(lambda x: datetime.strptime(x, '%d/%m/%Y'))
+        master_results = master_results.sort_values(['country', 'date']).reset_index(drop=True)
+        master_results = master_results.replace({',':'', r'^\s*$':0, 'None':0, 'nan':0}, regex=True)
+        master_results[cols] = master_results[cols].astype(float)
+        master_results['case_growth_rate'] = (master_results['new_cases']\
+                                              /master_results['total_cases'].shift(1))*100
+        master_results['case_growth_rate'] = np.where(master_results['case_growth_rate']<0,0,
+                                                      master_results['case_growth_rate'])
+        master_results['death_growth_rate'] = (master_results['new_deaths']\
+                                               /master_results['total_deaths'].shift(1))*100
+        master_results['death_growth_rate'] = np.where(master_results['death_growth_rate']<0,0,
+                                                       master_results['death_growth_rate'])
         pops_df = pd.read_csv('../../../data/world_pops.csv')
         pops_dict = dict(zip(pops_df['country'],pops_df['pop_mills'].astype(float)))
-        data['pop_millions'] = data['country'].map(pops_dict)
-        data.fillna(0, inplace=True)
+        master_results['pop_millions'] = master_results['country'].map(pops_dict)
         dates_df = pd.read_csv('../../../data/first_case.csv')
         dates_dict = dict(zip(dates_df['country'],dates_df['date_first_case']))
-        data['first_case_date'] = data['country'].map(dates_dict)
-        data.to_csv('../../../data/graph_data.csv', index=False)
-
-
-
-
+        master_results['first_case_date'] = master_results['country'].map(dates_dict)
+        master_results.fillna(0, inplace=True)
+        for col in int_cols:
+            master_results[col] = master_results[col].astype(int)
+        master_results.to_csv('../../../data/graph_data.csv', index=False)
 
 configure_logging()
 runner = CrawlerRunner()
