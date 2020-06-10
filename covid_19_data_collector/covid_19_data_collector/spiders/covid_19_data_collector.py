@@ -132,7 +132,7 @@ def crawl():
 def main():
    crawl()
    reactor.run() # the script will block here until the last crawl call is finished
-   rc=call('../../../website/website.sh')
+   #rc=call('../../../website/website.sh')
 
 
 if __name__ == '__main__':
