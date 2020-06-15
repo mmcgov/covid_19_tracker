@@ -26,10 +26,10 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 server = app.server
 app.config.suppress_callback_exceptions = True
-un_pw = [['user_1', 'password_1'], ['user_2', 'password_2'], ['user_3', 'password_3']]
+un_pw = [['user_1', 'pw_1'], ['un_2', 'pw_2'], ['un_3', 'pw_3']]
 auth = dash_auth.BasicAuth(app, un_pw)
 initial_country = 'Ireland'
-data  = pd.read_csv('../../../data/graph_data.csv')
+data  = pd.read_csv('../data/graph_data.csv')
 intro = '''Interactive website analysing Covid-19 data. The data source is https://www.worldometers.info/coronavirus/''' 
 app.layout = html.Div(children=[
 html.H1(children='Covid 19 Data Analytics'),
@@ -41,7 +41,7 @@ dcc.Graph(id='main_graph',style={'width':1000})
 
 @app.callback(Output('live-update-text', 'children'), [Input('country', 'value')])
 def update_fund_value(value):
-    data  = pd.read_csv('../../../data/graph_data.csv')
+    data  = pd.read_csv('../data/graph_data.csv')
     data = data[data['country']==value]
     a=data['date'].iloc[-1]
     b=data['country'].iloc[-1]
@@ -54,7 +54,7 @@ def update_fund_value(value):
 
 @app.callback(Output('main_graph', 'figure'), [Input('country', 'value')])
 def update_layout(value):
-    graph_df = pd.read_csv('../../../data/graph_data.csv')
+    graph_df = pd.read_csv('../data/graph_data.csv')
     graph_df = graph_df[graph_df['country']==value]
     # Create the graph with subplots
     fig = plotly.tools.make_subplots(specs=[[{'secondary_y': True}]])
