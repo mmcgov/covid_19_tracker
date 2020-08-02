@@ -30,10 +30,30 @@ class covid_19_data_collector(scrapy.Spider):
         start_urls = ['https://www.worldometers.info/coronavirus/#countries']
 
     def start_requests(self):
-        yield scrapy.Request('https://www.worldometers.info/coronavirus/#countries',
+        """
+        Function to start scraping with inital page url
+
+        Returns
+        response: url response which is then passed into the parse function
+        """
+
+        yield scrapy.Request('https://www.worldometers.info/coronavirus/#countries', 
                              callback=self.parse)
 
     def parse(self, response):
+        """
+        Function which does the scraping of the website including
+        collecting all the data frmo the table and saving it as
+        csv output files
+
+        Parameters:
+        response: url response which is then passed into the parse function
+
+
+        Returns
+        raw_res (list of mixed type): list of all the covid data on site
+        """
+
         global raw_res
         raw_res = list()
         self.c_table = '//*[@id="main_table_countries_today"]/tbody/tr'
@@ -57,6 +77,17 @@ class covid_19_data_collector(scrapy.Spider):
                                        ).extract_first())
 
     def closed(self, reason):
+        """
+        Function which formats and cleans the data from the scrape
+        before saving it as csv files
+
+        Parameters:
+        reason: scrapy input means this function will only activate when
+        spider is finished
+
+        Returns
+        csv files: list of all the covid data on site
+        """
         # appending new daily data to master data
         self.case_data = '../../../data/covid_19_case_data.csv'
         self.graph_data = '../../../data/graph_data.csv'
@@ -78,14 +109,14 @@ class covid_19_data_collector(scrapy.Spider):
         today = datetime.now().strftime('%d/%m/%Y')
         vals = zip(raw_res[0::14], raw_res[1::14], raw_res[2::14],
                    raw_res[3::14], raw_res[4::14], raw_res[5::14],
-                   raw_res[6::14], raw_res[8::14], raw_res[9::14], 
-                   raw_res[10::14], raw_res[11::14], raw_res[12::14], 
+                   raw_res[6::14], raw_res[8::14], raw_res[9::14],
+                   raw_res[10::14], raw_res[11::14], raw_res[12::14],
                    raw_res[13::14])
         results = pd.DataFrame(vals, columns=columns)
         results.insert(0, 'date', today)
-    
+
         if os.path.isfile(self.case_data):
-            master_results = pd.read_csv(self.case_data, 
+            master_results = pd.read_csv(self.case_data,
                                          index_col=False)
         else:
             master_results = pd.DataFrame()
