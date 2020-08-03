@@ -37,7 +37,7 @@ class covid_19_data_collector(scrapy.Spider):
         response: url response which is then passed into the parse function
         """
 
-        yield scrapy.Request('https://www.worldometers.info/coronavirus/#countries', 
+        yield scrapy.Request('https://www.worldometers.info/coronavirus/#countries',
                              callback=self.parse)
 
     def parse(self, response):
